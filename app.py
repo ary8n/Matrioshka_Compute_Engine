@@ -44,11 +44,11 @@ def load_agent(path, state_dim, action_dim):
 
 
 def choose_fallback_action(env):
-    """Use a transparent policy when the optional training stack is unavailable."""
     demand = env.job["demand"]
-    if env.job["deadline"] <= 1 and demand <= env.server_capacity - env.server_load:
+    free_capacity = env.server_capacity - env.server_load
+    if env.job["deadline"] <= 1 and demand <= free_capacity:
         return 0
-    if env.renewable_pct >= 0.55 and demand <= env.server_capacity - env.server_load:
+    if env.renewable_pct >= 0.55 and demand <= free_capacity:
         return 0
     if demand <= env.battery_kwh and env.battery_kwh / env.battery_capacity > 0.25:
         return 3
