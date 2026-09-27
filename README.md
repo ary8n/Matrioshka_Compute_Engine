@@ -25,7 +25,7 @@ The dashboard includes three views:
 
 Each simulation step presents the agent with a new workload. The environment updates server load, battery storage, renewable availability, carbon intensity, cost, and deadline pressure after the decision. Rewards favor completed work and penalize carbon emissions, energy cost, invalid actions, and missed deadlines.
 
-The policy is implemented with PyTorch and trained in `train_agent.py`. The trained weights are stored in `carbon_agent.pt`.
+The optional policy is implemented with PyTorch and trained in `train_agent.py`. The hosted dashboard does not require PyTorch: it uses a transparent carbon-aware fallback policy when the training stack is unavailable. Install `requirements-training.txt` locally to train or evaluate the DQN model.
 
 ## Portfolio framing
 

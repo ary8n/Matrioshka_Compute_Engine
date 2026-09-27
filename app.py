@@ -3,10 +3,15 @@ import os
 import matplotlib.pyplot as plt
 import pandas as pd
 import streamlit as st
-import torch
 
-from dqn_agent import DQNAgent
 from env_advanced import CarbonAwareComputeEnv
+
+try:
+    import torch
+    from dqn_agent import DQNAgent
+except ImportError:
+    torch = None
+    DQNAgent = None
 
 
 st.set_page_config(page_title="CarbonAware Compute", page_icon="C", layout="wide")
@@ -26,6 +31,8 @@ with st.sidebar.expander("Technical details"):
 
 @st.cache_resource
 def load_agent(path, state_dim, action_dim):
+    if DQNAgent is None or torch is None:
+        return None, False
     agent = DQNAgent(state_dim, action_dim)
     if not os.path.exists(path):
         return agent, False
@@ -36,6 +43,18 @@ def load_agent(path, state_dim, action_dim):
         return agent, False
 
 
+def choose_fallback_action(env):
+    """Use a transparent policy when the optional training stack is unavailable."""
+    demand = env.job["demand"]
+    if env.job["deadline"] <= 1 and demand <= env.server_capacity - env.server_load:
+        return 0
+    if env.renewable_pct >= 0.55 and demand <= env.server_capacity - env.server_load:
+        return 0
+    if demand <= env.battery_kwh and env.battery_kwh / env.battery_capacity > 0.25:
+        return 3
+    return 1
+
+
 def run_policy(length, path):
     env = CarbonAwareComputeEnv(episode_length=length, seed=42)
     agent, loaded = load_agent(path, env.observation_space.shape[0], env.action_space.n)
@@ -43,7 +62,7 @@ def run_policy(length, path):
     rows = []
     done = False
     while not done:
-        action = agent.select_action(state, evaluate=loaded)
+        action = agent.select_action(state, evaluate=loaded) if loaded else choose_fallback_action(env)
         state, reward, terminated, truncated, info = env.step(action)
         rows.append({"step": len(rows) + 1, "action": info["action"],
                      "source": info["source"], "reward": reward,
@@ -63,7 +82,7 @@ def metric_summary(history):
 if mode == "Policy run":
     history, loaded = run_policy(episode_length, model_path)
     if not loaded:
-        st.warning("No compatible carbon_agent.pt found. Run train_agent.py first.")
+        st.info("Running the lightweight carbon-aware policy. The optional PyTorch model is used when available.")
     completed, carbon, cost, reward = metric_summary(history)
     cards = st.columns(4)
     cards[0].metric("Jobs completed", completed)
